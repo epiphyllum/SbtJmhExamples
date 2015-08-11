@@ -1,52 +1,50 @@
 package jmh
 
-import java.util.Random
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.TimeUnit
 
-import jmh.BenchmarkStates.BenchmarkState
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.openjdk.jmh.annotations._
 
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Fork(1)
+@State(Scope.Thread)
 class Benchmarks {
 
-  @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
-  @Warmup(iterations = 5)
-  @Measurement(iterations = 5)
-  def random(state: BenchmarkState): Unit = {
-    state.random.nextInt(100)
+  var mapper:ObjectMapper = _
+
+  var list: Seq[User] = _
+
+  var json: String = _
+
+  @Setup
+  def setup: Unit = {
+    mapper = {
+      val m = new ObjectMapper()
+      m.registerModule(DefaultScalaModule)
+      m
+    }
+    list = Seq.fill(10)(User("hogefuga", 32))
+    json = mapper.writeValueAsString(list)
   }
 
   @Benchmark
   @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
+  @OutputTimeUnit(TimeUnit.MICROSECONDS)
   @Warmup(iterations = 5)
   @Measurement(iterations = 5)
-  def tlr(state: BenchmarkState): Unit = {
-    ThreadLocalRandom.current().nextInt(100)
+  def write(): Unit = {
+    mapper.writeValueAsString(list)
   }
 
   @Benchmark
   @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
+  @OutputTimeUnit(TimeUnit.MICROSECONDS)
   @Warmup(iterations = 5)
   @Measurement(iterations = 5)
-  def nanotime(state: BenchmarkState): Unit = {
-    System.nanoTime()
-  }
-
-  @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
-  @Warmup(iterations = 5)
-  @Measurement(iterations = 5)
-  def millitime(state: BenchmarkState): Unit = {
-    System.currentTimeMillis()
+  def read(): Unit = {
+    mapper.readValue(json, classOf[Seq[User]])
   }
 }
 
-object BenchmarkStates {
-
-  @State(Scope.Benchmark)
-  class BenchmarkState {
-    val random = new Random()
-  }
-}
+case class User(name: String, age: Long)
