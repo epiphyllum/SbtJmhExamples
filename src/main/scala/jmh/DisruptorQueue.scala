@@ -18,7 +18,7 @@ class DisruptorQueue(pt: ProducerType, ws: WaitStrategy) {
     }
 
     // Specify the size of the ring buffer, must be power of 2.
-    val bufferSize = 4096
+    val bufferSize = 256 * 1024
 
     val d = new Disruptor[Event](factory, bufferSize, executor, pt, ws)
 

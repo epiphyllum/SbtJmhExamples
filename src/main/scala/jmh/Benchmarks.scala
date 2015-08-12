@@ -2,7 +2,7 @@ package jmh
 
 import java.util.concurrent._
 
-import com.lmax.disruptor.{YieldingWaitStrategy, BusySpinWaitStrategy, LiteBlockingWaitStrategy, BlockingWaitStrategy}
+import com.lmax.disruptor._
 import com.lmax.disruptor.dsl.ProducerType
 import org.openjdk.jmh.annotations._
 
@@ -19,6 +19,8 @@ class Benchmarks {
 
   var yieldingWaitStrategy: DisruptorQueue = _
 
+  var sleepWaitStrategy: DisruptorQueue = _
+
   var abq: ArrayBlockingQueue[Int] = _
 
   var lbq: LinkedBlockingDeque[Int] = _
@@ -31,6 +33,7 @@ class Benchmarks {
     liteBlockingWaitStrategy = new DisruptorQueue(ProducerType.MULTI, new LiteBlockingWaitStrategy)
     busySpinWaitStrategy = new DisruptorQueue(ProducerType.MULTI, new BusySpinWaitStrategy)
     yieldingWaitStrategy = new DisruptorQueue(ProducerType.MULTI, new YieldingWaitStrategy)
+    sleepWaitStrategy = new DisruptorQueue(ProducerType.MULTI, new SleepingWaitStrategy())
     abq = new ArrayBlockingQueue[Int](10000)
     lbq = new LinkedBlockingDeque[Int]()
     executor = Executors.newCachedThreadPool()
@@ -62,6 +65,7 @@ class Benchmarks {
     liteBlockingWaitStrategy.close()
     busySpinWaitStrategy.close()
     yieldingWaitStrategy.close()
+    sleepWaitStrategy.close()
     executor.shutdownNow()
     executor.awaitTermination(10, TimeUnit.SECONDS)
   }
@@ -92,6 +96,13 @@ class Benchmarks {
   @Measurement(iterations = 10)
   def yieldingWaitStrategyTest(): Unit = {
     yieldingWaitStrategy.push(213)
+  }
+
+  @Benchmark
+  @Warmup(iterations = 10)
+  @Measurement(iterations = 10)
+  def sleepWaitStrategyTest(): Unit = {
+    sleepWaitStrategy.push(213)
   }
 
   @Benchmark
