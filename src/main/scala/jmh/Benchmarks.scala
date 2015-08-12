@@ -1,52 +1,70 @@
 package jmh
 
-import java.util.Random
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.{ArrayBlockingQueue, LinkedBlockingDeque, TimeUnit}
 
-import jmh.BenchmarkStates.BenchmarkState
+import com.lmax.disruptor.dsl.ProducerType
 import org.openjdk.jmh.annotations._
 
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Fork(1)
+@State(Scope.Thread)
 class Benchmarks {
 
-  @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
-  @Warmup(iterations = 5)
-  @Measurement(iterations = 5)
-  def random(state: BenchmarkState): Unit = {
-    state.random.nextInt(100)
+  var sdq: DisruptorQueue = _
+
+  var mdq: DisruptorQueue = _
+
+  var abq: ArrayBlockingQueue[Int] = _
+
+  var lbq: LinkedBlockingDeque[Int] = _
+
+  @Setup
+  def setup: Unit = {
+    sdq = new DisruptorQueue(ProducerType.SINGLE)
+    mdq = new DisruptorQueue(ProducerType.MULTI)
+    abq = new ArrayBlockingQueue[Int](10000)
+    lbq = new LinkedBlockingDeque[Int]()
+  }
+
+  @TearDown
+  def teardown: Unit = {
+    abq.clear()
+    lbq.clear()
+    sdq.close()
+    mdq.close()
   }
 
   @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
   @Warmup(iterations = 5)
   @Measurement(iterations = 5)
-  def tlr(state: BenchmarkState): Unit = {
-    ThreadLocalRandom.current().nextInt(100)
+  def singleProducerDisruptor(): Unit = {
+    sdq.push(213)
   }
 
   @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
   @Warmup(iterations = 5)
   @Measurement(iterations = 5)
-  def nanotime(state: BenchmarkState): Unit = {
-    System.nanoTime()
+  def multiProducerDisruptor(): Unit = {
+    mdq.push(213)
   }
 
   @Benchmark
-  @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
   @Warmup(iterations = 5)
   @Measurement(iterations = 5)
-  def millitime(state: BenchmarkState): Unit = {
-    System.currentTimeMillis()
+  def arrayBlockingQueue(): Unit = {
+    if (abq.remainingCapacity() == 0) {
+      abq.clear()
+    }
+    abq.offer(213)
   }
-}
 
-object BenchmarkStates {
-
-  @State(Scope.Benchmark)
-  class BenchmarkState {
-    val random = new Random()
+  @Benchmark
+  @Warmup(iterations = 5)
+  @Measurement(iterations = 5)
+  def linkedBlockingQueue(): Unit = {
+    if (lbq.size() >= 10000) {
+      lbq.clear()
+    }
+    lbq.offer(213)
   }
 }
