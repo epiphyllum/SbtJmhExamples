@@ -5,7 +5,7 @@ import java.util.concurrent.{Executors, TimeUnit}
 import com.lmax.disruptor.dsl.{ProducerType, Disruptor}
 import com.lmax.disruptor._
 
-class DisruptorQueue(pt: ProducerType) {
+class DisruptorQueue(pt: ProducerType, ws: WaitStrategy) {
 
   // Executor that will be used to construct new threads for consumers
   private[this] val executor = Executors.newCachedThreadPool()
@@ -18,9 +18,9 @@ class DisruptorQueue(pt: ProducerType) {
     }
 
     // Specify the size of the ring buffer, must be power of 2.
-    val bufferSize = 1024
+    val bufferSize = 4096
 
-    val d = new Disruptor[Event](factory, bufferSize, executor, pt, new BlockingWaitStrategy)
+    val d = new Disruptor[Event](factory, bufferSize, executor, pt, ws)
 
     // Connect the handler
     d.handleEventsWith(new InternalEventHandler(1), new InternalEventHandler(2))
@@ -42,7 +42,7 @@ class DisruptorQueue(pt: ProducerType) {
     }
 
   def push(value: Long): Unit = {
-    ringBuffer.publishEvent(TRANSLATOR, value)
+    ringBuffer.tryPublishEvent(TRANSLATOR, value)
   }
 
   def close(): Unit = {
